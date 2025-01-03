@@ -8,7 +8,7 @@ This document serves as the official guide for the Human Resource Management Sys
 All API requests are served over HTTPS.
 
 ```
-https://<your-backend-url>
+
 ```
 
 ---
@@ -17,7 +17,6 @@ https://<your-backend-url>
 
 ### 1. Add Employee
 
-**Endpoint:** `POST /addEmployee`
 
 **Description:** Adds a new employee to the system.
 
@@ -51,7 +50,6 @@ https://addemployee-gasng5ql5q-uc.a.run.app
 
 ### 2. Edit Employee
 
-**Endpoint:** `PUT /editEmployee`
 
 **Description:** Edits an existing employee.
 
@@ -86,7 +84,6 @@ https://editemployee-gasng5ql5q-uc.a.run.app
 
 ### 3. Delete Employee
 
-**Endpoint:** `DELETE /deleteEmployee`
 
 **Description:** Deletes an employee by ID.
 
@@ -113,7 +110,6 @@ https://deleteemployee-gasng5ql5q-uc.a.run.app
 
 ### 4. Get All Employees
 
-**Endpoint:** `GET /getAllEmployees`
 
 **Description:** Retrieves all employees.
 
@@ -151,7 +147,6 @@ https://getallemployees-gasng5ql5q-uc.a.run.app
 
 ### 5. Search Employees
 
-**Endpoint:** `GET /searchEmployees`
 
 **Description:** Searches for employees based on any field and value.
 
