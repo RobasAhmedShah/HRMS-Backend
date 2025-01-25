@@ -1,5 +1,27 @@
-"FromDate": "2024-09-01",
-  "ToDate": "2024-09-30",
-  "PayMode": "Cheque",
-  "OTType": "None",
-  "AccountNo": "1003-0081-072581-01-8"
+1 Separate Employee file with File No. .
+
+2 Application / CV of Employee for Job, ifany .
+3 Educational Certificates, if any - Verified Copy
+4 Experience Certificates, if any - Vertified Copy
+5 Employment Form in Urdu or English with data filled .
+6 National Identity Card Attached .
+7 File age Verification form and verify worker's age by anyone of the following .
+ a. National Identity Card - NIC, or
+ b. Birth Certificate, or
+ c. Form B, or
+ d. Government Doctor's Certificate Verifying age or
+ e. School Leaving Certificate
+8 Certification of Verification of Age as above with original .
+9 3 or 4 Photos of Employee in 1 x 1 Size for ID Card & File .
+10 Fitness evaluation confirming worker's ability to work .
+11 Letter of Appointment in urdu .
+12 Letter of Appointment in English
+13 Orientation Checklist of Company's Matters / Facilities
+14 Letter of Confirmation in Urdu
+15 Letter of Confirmation in English
+16 Employee's Rights Benefits (English or Urdu)
+17 Hygiene Card (Health verification by Doctor)
+18 Leave Forms
+19 Increment Sheets
+20 Loan Application
+22 Evaluation

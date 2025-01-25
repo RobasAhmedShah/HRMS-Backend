@@ -7,7 +7,9 @@ import calculatePayroll from "./calculateSalary";
 import { mockEmployees } from "./mock";
 import validateEmployeeData from "./validateEmployee";
 import generateMockAttendance, { generateMockLeaves } from "./generateMock";
-import { generateTrialSlip } from "./TrialSlip";
+import { generateTrialSlip } from "./files/TrialSlip";
+import { generatePersonalFileSlip } from "./files/personalFile";
+import { generateOrientationChecklist } from "./files/orientationFile";
 
 
 // Initialize Firebase Admin SDK
@@ -550,9 +552,27 @@ export const getEmployeeData = functions.https.onRequest((req, res) => {
   });
 });
 
-export const trialSlip = functions.https.onRequest((req, res) => {
+export const trialSlip = functions.https.onRequest({
+  memory: "1GiB" },
+  (req, res) => {
   corsHandler(req, res, async () => {
     generateTrialSlip(req,res);
   });
 });
+export const personalFileSlip = functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generatePersonalFileSlip(req,res);
+  });
+});
+
+export const orientFile = functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateOrientationChecklist(req,res);
+  });
+});
+
 

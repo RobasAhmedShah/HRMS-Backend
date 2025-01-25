@@ -1,15 +1,13 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer-core";
-const chromium=require("@sparticuz/chromium");
-import { generateBarcode } from "./components/barcode";
+const chromium = require("@sparticuz/chromium");
+import { generateBarcode } from "../components/barcode";
 
 
-// Initialize Firebase Admin if not already initialized
 
 function getDatesInRange(startDate: Date, endDate: Date) {
   const date = new Date(startDate.getTime());
-
   const dates = [];
 
   while (date <= endDate) {
@@ -35,7 +33,7 @@ function formatDate(date: Date) {
 export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
     try {
       // Parse request body
-      const { startDate, endDate, section, department,name,designation, cnic, employeeImage } =
+      const { startDate, endDate, section, department, name, designation, cnic, employeeImage } =
         req.body;
 
       // Generate trial number and current date
@@ -46,11 +44,9 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
       const datesInRange = getDatesInRange(startDateObj, endDateObj);
       const formattedDates = datesInRange.map(date => formatDate(date));
 
-
-        const issueDate = new Date().toLocaleDateString();
+      const issueDate = new Date().toLocaleDateString();
       const currentDate = startDate;
       
-
       // Create the HTML for the trial slip
       const htmlContent = `
       <!DOCTYPE html>
@@ -263,7 +259,9 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
                   </tbody>
               </table>
       
-              <div class="reference-number">0000023754</div>
+              <div class="reference-number">
+                  <p>Reference Number: ${generatedTrialNumber}</p>
+              </div>
       
               <div class="barcode">
                   <img src="${barcodeImg}" alt="Barcode">
@@ -296,7 +294,7 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
       </html>
       `;
 
-      // Launch Puppeteer
+      // Launch Puppeteer to generate PDF
       const browser = await puppeteer.launch({
         args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
         executablePath: await chromium.executablePath(),
@@ -305,27 +303,68 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
 
       const page = await browser.newPage();
       await page.setContent(htmlContent);
-
-      // Generate PDF
       const pdfBuffer = await page.pdf({
         format: "A4",
         printBackground: true,
       });
-
       await browser.close();
 
       // Save PDF to Firebase Storage
       const bucket = admin.storage().bucket();
       const fileName = `trialSlip-${generatedTrialNumber}.pdf`;
       const file = bucket.file(fileName);
-
-      await file.save(pdfBuffer, {
-        predefinedAcl: 'publicRead',
-      });
+      await file.save(pdfBuffer, { predefinedAcl: 'publicRead' });
 
       // Generate a signed URL for the PDF
       const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      
+      const data = {
+        EmployeeID: generatedTrialNumber,
+        EmployeeCode: generatedTrialNumber,
+        EmployeeName: name,
+        pdfUrl:downloadUrl,
+        Type: "Trial",
+        PersonalDetails: {
+          EmployeeID: generatedTrialNumber,
+          EmployeeCode: generatedTrialNumber,
+          EmployeeName: name,
+          NIC: cnic,
+        },
+        JobDetails: {
+          Department: department,
+          Section: section,
+          Designation: designation,
+          DateOfJoining: startDate,
+          LeftDate: endDate,
+        },
+        FromDate: startDate,
+        ToDate: endDate,
+        EmployeeImage: employeeImage,
+      };
+      
+      try {
+        const response = await fetch(
+          "https://us-central1-hrms-1613d.cloudfunctions.net/saveEmployeeData",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          }
+        );
+      
+        if (response.ok) {
+          console.log("Data saved successfully!");
+        } else {
+          const errorData = await response.json();
+          console.error("Error saving data:", errorData);
+        }
+      } catch (error) {
+        console.error("Network error while saving data:", error);
+      }
 
+      // Send response with the PDF download link
       res.status(200).json({
         message: "Trial slip generated successfully",
         pdfUrl: downloadUrl,
@@ -336,15 +375,11 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
         message: "Failed to generate trial slip",
       });
     }
-  });
+});
 
 // Utility function to generate a unique trial number
 function generateTrialNumber(): string {
   const date = new Date();
-  const formattedDate = `${date.getFullYear()}${("0" + (date.getMonth() + 1)).slice(
-    -2
-  )}${("0" + date.getDate()).slice(-2)}${("0" + date.getHours()).slice(-2)}${(
-    "0" + date.getMinutes()
-  ).slice(-2)}`;
+  const formattedDate = `${date.getFullYear()}${("0" + (date.getMonth() + 1)).slice(-2)}${("0" + date.getDate()).slice(-2)}${("0" + date.getHours()).slice(-2)}${("0" + date.getMinutes()).slice(-2)}`;
   return `TRL-${formattedDate}`;
 }
