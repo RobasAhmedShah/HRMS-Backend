@@ -5,17 +5,20 @@ import { Request, Response } from "express";
 import cors from "cors";
 import calculatePayroll from "./calculateSalary";
 import { mockEmployees } from "./mock";
-import validateEmployeeData from "./validateEmployee";
+// import validateEmployeeData from "./validateEmployee";
 import generateMockAttendance, { generateMockLeaves } from "./generateMock";
 import { generateTrialSlip } from "./files/TrialSlip";
 import { generatePersonalFileSlip } from "./files/personalFile";
 import { generateOrientationChecklist } from "./files/orientationFile";
-
-
+import { generateEmploymentFormPDF } from "./files/employmentForm";
+import { generateFitnessFormPDF } from "./files/fitness-form";
+import { generateAgeVerificationFormPDF } from "./files/ageVerificationForm";
+import { generateJobDescFormPDF } from "./files/jobDesc";
+import { generateTaqarrurFormPDF } from "./files/taqarrurForm";
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
-const db = admin.firestore();
+export const db = admin.firestore();
 
 const corsHandler = cors({
   origin: true
@@ -89,6 +92,7 @@ export const generateMockData = functions.https.onRequest(async (req, res) => {
 
 
 
+
 /**
  * Helper function to handle Firestore document references
  */
@@ -106,12 +110,12 @@ export const addEmployee = functions.https.onRequest((req: Request, res: Respons
   corsHandler(req, res, async () => {
     const employeeData = req.body;
 
-    // Validate employee data
-    const validation = validateEmployeeData(employeeData);
-    if (!validation.valid) {
-      res.status(400).send(validation.message);
-      return;
-    }
+    // // Validate employee data
+    // const validation = validateEmployeeData(employeeData);
+    // if (!validation.valid) {
+    //   res.status(400).send(validation.message);
+    //   return;
+    // }
 
     try {
       const docRef = await db.collection("employees").add({
@@ -417,82 +421,61 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
 
     try {
       // Reference to the employee document
-      const employeeDocRef = db.collection("employees").doc(employeeData.EmployeeID ?? null);
+      const employeeDocRef = db.collection("employees").doc(employeeData.PersonalDetails.EmployeeID);
 
       // Get the current date and time in Pakistan timezone
       const pakistanTime = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
       const currentDate = pakistanTime.replace(/\//g, "-");
+
+        // Enable ignoreUndefinedProperties for Firestore
+        //admin.firestore().settings({ ignoreUndefinedProperties: true });
+
 
       // Helper function to remove undefined values from an object
       const cleanData = (data: any) => {
         return Object.fromEntries(Object.entries(data).filter(([_, value]) => value !== undefined));
       };
 
-      const rootData = cleanData({
-        EmployeeName:employeeData.EmployeeName,
-        EmployeeCode: employeeData.EmployeeCode,
-        CNIC: employeeData.CNIC,
-        DOB: employeeData.DOB,
-        Gender: employeeData.Gender,
-        MaritalStatus: employeeData.MaritalStatus,
-        Mobile:employeeData.Mobile,
-        Type: employeeData.Type,
-        sMonth: employeeData.sMonth,
-        sYear: employeeData.sYear,
-        MType: employeeData.MType,
-        FromDate: employeeData.FromDate,
-        ToDate: employeeData.ToDate,
-        PayMode: employeeData.PayMode,
-        OTType: employeeData.OTType,
-        AccountNo: employeeData.AccountNo,
+      // Prepare the data to save, merging all details into one document
+      const mergedData = {
+    
+        EmployeeName: employeeData.PersonalDetails.EmployeeName ?? "N/A",
+          EmployeeCode: employeeData.PersonalDetails.EmployeeCode ?? "N/A",
+          CNIC: employeeData.PersonalDetails.CNIC ?? "N/A",
+        DOB: employeeData.PersonalDetails.DOB ?? "N/A",
+        Gender: employeeData.PersonalDetails.Gender ?? "N/A",
+        MaritalStatus: employeeData.PersonalDetails.MaritalStatus ?? "N/A",
+        Mobile: employeeData.PersonalDetails.Mobile ?? "N/A",
+        Type: employeeData.PersonalDetails.Type ?? "N/A",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      // Save root-level data
-      await employeeDocRef.set(rootData, { merge: true });
-
-      // Prepare and save data to subcollections
-      const subcollections = {
-
-         
-       
-        Personal: {
-          
-          data: cleanData({
-            ...employeeData.PersonalDetails,
-           
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        sMonth: employeeData.sMonth ?? "N/A",
+        sYear: employeeData.sYear ?? "N/A",
+        MType: employeeData.MType ?? "N/A",
+        FromDate: employeeData.FromDate ?? "N/A",
+        ToDate: employeeData.ToDate ?? "N/A",
+        PayMode: employeeData.PayMode ?? "N/A",
+        OTType: employeeData.OTType ?? "N/A",
+        AccountNo: employeeData.AccountNo ?? "N/A",
+        
+          Personal: cleanData(employeeData.PersonalDetails),
+          Job: cleanData(employeeData.JobDetails),
+          Attendance: cleanData(employeeData.AttendanceDetails),
+          Financial: cleanData(employeeData.FinancialDetails),
+        Log: {
+          [currentDate]: {
+            addedBy: employeeData.addedBy ?? "system",
+            addedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
         },
-        Job: {
-          data: cleanData({
-            ...employeeData.JobDetails,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }),
-        },
-        Attendance: {
-          data: cleanData({
-            ...employeeData.AttendanceDetails,
-            OTType: employeeData.OTType,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }),
-        },
-        Financial: {
-          data: cleanData({
-            ...employeeData.FinancialDetails,
-            PayMode: employeeData.PayMode,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          }),
-        },
-      };
-
-      for (const [subcollection, { data }] of Object.entries(subcollections)) {
-        const subcollectionRef = employeeDocRef.collection(subcollection).doc(currentDate);
-        await subcollectionRef.set(data);
       }
+      ;
+
+      // Save the data to Firestore
+      await employeeDocRef.set(mergedData, { merge: true });
 
       res.status(200).send({
-        message: "Employee data stored in categorized subcollections successfully!",
+        message: "Employee data stored successfully in a single document!",
         employeeId: employeeData.PersonalDetails.EmployeeID,
       });
     } catch (error) {
@@ -515,33 +498,14 @@ export const getEmployeeData = functions.https.onRequest((req, res) => {
       }
 
       const employeeDataList: any[] = [];
-
-      // Iterate through each employee document
+      // Iterate through each employee document and fetch only the root data
       for (const employeeDoc of employeesSnapshot.docs) {
-        const employeeId = employeeDoc.id;
-        const rootData = employeeDoc.data();
-        // Fetch all subcollections for the current employee
-        const subcollections = await db.collection("employees").doc(employeeId).listCollections();
+        const employeeData = employeeDoc.data(); // Get the root data of the employee
 
-        const employeeData: any = { employeeId };
-
-        // Retrieve data from each subcollection
-        for (const subcollection of subcollections) {
-          const subcollectionSnapshot = await subcollection.get();
-
-          if (!subcollectionSnapshot.empty) {
-            const subcollectionData: any = {};
-
-            subcollectionSnapshot.forEach((doc) => {
-              subcollectionData[doc.id] = doc.data();
-            });
-
-            employeeData[subcollection.id] = subcollectionData;
-            employeeData['root'] = rootData;
-          }
-        }
-
-        employeeDataList.push(employeeData);
+        // Add the employee data with ID to the list
+        employeeDataList.push({
+          ...employeeData, // Spread the root data into the new object
+        });
       }
 
       res.status(200).send({ employees: employeeDataList });
@@ -574,5 +538,49 @@ export const orientFile = functions.https.onRequest( {
     generateOrientationChecklist(req,res);
   });
 });
+
+export const employementForm =functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateEmploymentFormPDF(req,res);
+  });
+});
+
+export const fitnessForm =functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateFitnessFormPDF(req,res);
+  });
+});
+
+export const ageVerifyForm =functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateAgeVerificationFormPDF(req,res);
+  });
+});
+
+
+export const jobDescriptionForm =functions.https.onRequest( {
+  memory: "512MiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateJobDescFormPDF(req,res);
+  });
+});
+
+export const taqarrurForm =functions.https.onRequest( {
+  memory: "1GiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateTaqarrurFormPDF(req,res);
+  });
+});
+
+
+
 
 
