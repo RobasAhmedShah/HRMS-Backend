@@ -138,6 +138,7 @@ export const addEmployee = functions.https.onRequest((req: Request, res: Respons
   });
 });
 
+
 // Edit an Existing Employee
 export const editEmployee = functions.https.onRequest((req: Request, res: Response) => {
   corsHandler(req, res, async () => {
@@ -236,7 +237,7 @@ export const getAllEmployees = functions.https.onRequest((req: Request, res: Res
 
 
 // Search Employees by Any Field
-export const searchEmployees = functions.https.onRequest((req: Request, res: Response) => {
+export const searchEmployees = functions.https.onRequest((req: Request,res: Response) => {
   corsHandler(req, res, async () => {
     const { field, value } = req.query;
 
@@ -526,6 +527,7 @@ export const trialSlip = functions.https.onRequest({
     generateTrialSlip(req,res);
   });
 });
+
 export const personalFileSlip = functions.https.onRequest( {
   memory: "512MiB" },
    (req, res) => {
