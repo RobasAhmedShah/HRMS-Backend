@@ -116,17 +116,22 @@ export const logTimeOut = functions.https.onRequest(async (req, res) => {
     const workingMinutes = Math.floor((timeOutDate.getTime() - timeInDate.getTime()) / (1000 * 60));
     const workingHours = `${Math.floor(workingMinutes / 60)}:${workingMinutes % 60}`.padStart(5, "0");
 
-    const latecomings = timeInDate.getHours() > 9 || (timeInDate.getHours() === 9 && timeInDate.getMinutes() > 0)
-      ? `${timeInDate.getHours() - 9}:${timeInDate.getMinutes()}`.padStart(5, "0")
+    const latecomings = timeInDate.getHours() > 8 || (timeInDate.getHours() === 8 && timeInDate.getMinutes() > 15)
+      ? `${timeInDate.getHours() - 8}:${timeInDate.getMinutes() - 15}`.padStart(5, "0")
       : "0:00";
 
-    const earlyLeavings = timeOutDate.getHours() < 18
-      ? `${18 - timeOutDate.getHours()}:${60 - timeOutDate.getMinutes()}`.padStart(5, "0")
+    const earlyLeavings = timeOutDate.getHours() < 17
+      ? `${17 - timeOutDate.getHours()}:${60 - timeOutDate.getMinutes()}`.padStart(5, "0")
       : "0:00";
 
-    const overtime = timeOutDate.getHours() > 18
-      ? `${timeOutDate.getHours() - 18}:${timeOutDate.getMinutes()}`.padStart(5, "0")
-      : "0:00";
+    let overtimeMinutes = 0;
+    if (timeOutDate.getHours() > 17 || (timeOutDate.getHours() === 17 && timeOutDate.getMinutes() > 0)) {
+      const overtimeEnd = new Date(timeOutDate);
+      overtimeEnd.setHours(17, 0, 0, 0);
+      overtimeMinutes = Math.floor((timeOutDate.getTime() - overtimeEnd.getTime()) / (1000 * 60));
+      overtimeMinutes = Math.floor(overtimeMinutes / 30) * 30; // Round down to the nearest 30 minutes
+    }
+    const overtime = `${Math.floor(overtimeMinutes / 60)}:${(overtimeMinutes % 60).toString().padStart(2, "0")}`;
 
     // Update the existing entry
     dailyAttendance[existingEntryIndex] = {
@@ -148,61 +153,72 @@ export const logTimeOut = functions.https.onRequest(async (req, res) => {
 });
 
 export const getAttendanceSummary = functions.https.onRequest(async (req, res) => {
-    try {
-      if (req.method !== "GET") {
-        res.status(405).send("Method Not Allowed");
-        return;
-      }
-  
-      const { employeeCode, fromDate, toDate } = req.query;
-  
-      if (!employeeCode || !fromDate || !toDate) {
-        res.status(400).send("Missing required query parameters: employeeCode, fromDate, or toDate");
-        return;
-      }
-  
-      const from = new Date(fromDate as string);
-      const to = new Date(toDate as string);
-  
-      if (from > to) {
-        res.status(400).send("FromDate cannot be greater than ToDate");
-        return;
-      }
-  
-      const attendanceRef = db.collection("attendance").doc(employeeCode as string);
-      const attendanceDoc = await attendanceRef.get();
-  
-      if (!attendanceDoc.exists) {
-        res.status(404).send("Attendance record not found for this employee");
-        return;
-      }
-  
-      const dailyAttendance = attendanceDoc.data()?.dailyAttendance || [];
-  
-      // Filter attendance data between fromDate and toDate
-      const filteredAttendance = dailyAttendance.filter((entry: any) => {
-        const entryDate = new Date(entry.date);
-        return entryDate >= from && entryDate <= to;
-      });
-  
-      let presents = 0;
-      let absents = 0;
-      let totalWorkingHours = 0;
-      let totalOvertime = 0;
-      let totalLatecomings = 0;
-      let totalEarlyLeavings = 0;
-  
-      // Calculate summaries based on filtered attendance
-      filteredAttendance.forEach((entry: any) => {
+  try {
+    if (req.method !== "GET") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const { employeeCode, fromDate, toDate } = req.query;
+
+    if (!employeeCode || !fromDate || !toDate) {
+      res.status(400).send("Missing required query parameters: employeeCode, fromDate, or toDate");
+      return;
+    }
+
+    const from = new Date(fromDate as string);
+    const to = new Date(toDate as string);
+
+    if (from > to) {
+      res.status(400).send("FromDate cannot be greater than ToDate");
+      return;
+    }
+
+    const attendanceRef = db.collection("attendance").doc(employeeCode as string);
+    const attendanceDoc = await attendanceRef.get();
+
+    if (!attendanceDoc.exists) {
+      res.status(404).send("Attendance record not found for this employee");
+      return;
+    }
+
+    const leaveRef = db.collection("leaves")
+      .where("employeeCode", "==", employeeCode as string)
+      .where("status", "==", "approved");
+
+    const leaveDocs = await leaveRef.get();
+    const leaveDates = leaveDocs.docs.map(doc => doc.data().leaveDate);
+
+    const dailyAttendance = attendanceDoc.data()?.dailyAttendance || [];
+
+    // Filter attendance data between fromDate and toDate
+    const filteredAttendance = dailyAttendance.filter((entry: any) => {
+      const entryDate = new Date(entry.date);
+      const isLeaveDay = leaveDates.includes(entry.date); // Check if leave is approved for this date
+      return entryDate >= from && entryDate <= to && !isLeaveDay;
+    });
+
+    let presents = 0;
+    let absents = 0;
+    let totalWorkingHours = 0;
+    let totalOvertime = 0;
+    let totalLatecomings = 0;
+    let totalEarlyLeavings = 0;
+
+    // Calculate summaries based on filtered attendance
+    filteredAttendance.forEach((entry: any) => {
+      const isLeaveDay = leaveDates.includes(entry.date);
+
+      if (!isLeaveDay) {
         if (entry.timeIn && entry.timeOut) {
           presents += 1;
-  
+
           const workingMinutes = (new Date(entry.timeOut).getTime() - new Date(entry.timeIn).getTime()) / (1000 * 60);
           const workingHours = Math.floor(workingMinutes / 60);
           const overtime = entry.overtime ? parseTimeToMinutes(entry.overtime) : 0;
           const latecomings = entry.latecomings ? parseTimeToMinutes(entry.latecomings) : 0;
           const earlyLeavings = entry.earlyLeavings ? parseTimeToMinutes(entry.earlyLeavings) : 0;
-  
+
           totalWorkingHours += workingHours;
           totalOvertime += overtime;
           totalLatecomings += latecomings;
@@ -210,24 +226,25 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
         } else {
           absents += 1;
         }
-      });
-  
-      // Return the summary data
-      const summary = {
-        presents,
-        absents,
-        totalWorkingHours: formatMinutesToHours(totalWorkingHours),
-        totalOvertime: formatMinutesToHours(totalOvertime),
-        totalLatecomings: formatMinutesToHours(totalLatecomings),
-        totalEarlyLeavings: formatMinutesToHours(totalEarlyLeavings),
-      };
-  
-      res.status(200).send(summary);
-    } catch (error) {
-      console.error("Error fetching attendance summary:", error);
-      res.status(500).send("Internal Server Error");
-    }
-  });
+      }
+    });
+
+    // Return the summary data
+    const summary = {
+      presents,
+      absents,
+      totalWorkingHours: formatMinutesToHours(totalWorkingHours),
+      totalOvertime: formatMinutesToHours(totalOvertime),
+      totalLatecomings: formatMinutesToHours(totalLatecomings),
+      totalEarlyLeavings: formatMinutesToHours(totalEarlyLeavings),
+    };
+
+    res.status(200).send(summary);
+  } catch (error) {
+    console.error("Error fetching attendance summary:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
   
   /**
    * Helper function to parse time (e.g., "1:30") to minutes

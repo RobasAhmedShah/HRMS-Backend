@@ -19,6 +19,7 @@ import { generateAllPDFs } from "./files/PersonalForm";
 import { logTimeIn } from "./Attendance/attendance";
 import { logTimeOut } from "./Attendance/attendance";
 import { getAttendanceSummary } from "./Attendance/attendance";
+import { approveLeave } from "./Attendance/leaveApprove";
 admin.initializeApp();
 
 export const db = admin.firestore();
@@ -108,6 +109,7 @@ function addReferencesToEmployee(employeeId: string) {
   };
 }
 
+
 // Add a New Employee
 export const addEmployee = functions.https.onRequest((req: Request, res: Response) => {
   corsHandler(req, res, async () => {
@@ -131,6 +133,7 @@ export const addEmployee = functions.https.onRequest((req: Request, res: Respons
       await docRef.update(references);
 
       res.status(201).send({ message: "Employee added successfully", id: docRef.id });
+
     } catch (error) {
       console.error("Error adding employee:", error);
       res.status(500).send("Error adding employee");
@@ -615,6 +618,12 @@ export const attendanceSummary = functions.https.onRequest(
   });
 });
 
+export const leaveApproval = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    approveLeave(req,res);
+  });
+});
 
 
 
