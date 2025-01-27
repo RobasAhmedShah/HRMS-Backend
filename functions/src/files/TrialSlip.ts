@@ -1,3 +1,4 @@
+// Suggested code may be subject to a license. Learn more: ~LicenseLog:3000757631.
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer-core";
@@ -32,6 +33,7 @@ function formatDate(date: Date) {
 // Define the cloud function
 export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
     try {
+
       // Parse request body
       const { startDate, endDate, section, department, name, designation, cnic, employeeImage } =
         req.body;
@@ -315,6 +317,14 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
       const file = bucket.file(fileName);
       await file.save(pdfBuffer, { predefinedAcl: 'publicRead' });
 
+      // Save Employee Image to Firebase Storage
+      const employeeImageBuffer = Buffer.from(employeeImage.split(',')[1], 'base64'); // Assuming base64 encoded image
+      const employeeImageFileName = `employeeImages/employee-${generatedTrialNumber}.jpg`; // You can change extension if necessary
+      const employeeImageFile = bucket.file(employeeImageFileName);
+      await employeeImageFile.save(employeeImageBuffer, { contentType: 'image/jpeg', predefinedAcl: 'publicRead' }); // Adjust contentType if it's not jpeg
+
+      const employeeImageDownloadUrl = `https://storage.googleapis.com/${bucket.name}/${employeeImageFileName}`;
+
       // Generate a signed URL for the PDF
       const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
       
@@ -322,15 +332,26 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
         EmployeeID: generatedTrialNumber,
         EmployeeCode: generatedTrialNumber,
         EmployeeName: name,
+        Gender:null,
+        DOB:null,
+        Mobile:null,
+        DateOfJoining:null,
+        MaritalStatus:null,
+        MType:null,
+        sYear:null,
+        PayMode:null,
+        AccountNo:null,
+        OTType:null,
         pdfUrl:downloadUrl,
         Type: "Trial",
-        PersonalDetails: {
+        employeeImageUrl: employeeImageDownloadUrl,
+        Personal: {
           EmployeeID: generatedTrialNumber,
           EmployeeCode: generatedTrialNumber,
           EmployeeName: name,
-          NIC: cnic,
+          CNIC: cnic,
         },
-        JobDetails: {
+        Job: {
           Department: department,
           Section: section,
           Designation: designation,
@@ -339,29 +360,18 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
         },
         FromDate: startDate,
         ToDate: endDate,
-        EmployeeImage: employeeImage,
       };
       
+      // Save data to Firestore without calling an API
       try {
-        const response = await fetch(
-          "https://us-central1-hrms-1613d.cloudfunctions.net/saveEmployeeData",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-          }
-        );
-      
-        if (response.ok) {
-          console.log("Data saved successfully!");
-        } else {
-          const errorData = await response.json();
-          console.error("Error saving data:", errorData);
-        }
-      } catch (error) {
-        console.error("Network error while saving data:", error);
+        const db = admin.firestore();
+        await db.collection('employees').doc(generatedTrialNumber).set(data);
+        console.log("Data saved successfully to Firestore!");
+      } catch (dbError) {
+        console.error("Error saving data to Firestore:", dbError);
+        res.status(500).json({
+          message: "Failed to save data to Firestore",
+        });
       }
 
       // Send response with the PDF download link

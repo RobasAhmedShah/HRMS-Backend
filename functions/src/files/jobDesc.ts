@@ -2,35 +2,27 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer";
 const chromium = require("@sparticuz/chromium");
+import { db } from "..";
 
 export const generateJobDescFormPDF = functions.https.onRequest(
   async (req, res) => {
     try {
-      const employeeCode = req.body.empCode;
-      let employeeData;
+        const employeeCode = req.body.empCode;
+        const employeeDoc = await db
+          .collection("employees")
+          .doc(employeeCode)
+          .get();
+  
+          const employeeData = employeeDoc.data();
 
-      // Fetch employee data if employee code is provided
-      if (employeeCode) {
-        const response = await fetch(
-          "https://us-central1-hrms-1613d.cloudfunctions.net/getAllEmployees"
-        );
-
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
-
-        const employees = await response.json();
-
-        // Filter employee data by code
-        employeeData = employees.find(
-          (employee: any) => employee.EmployeeCode === employeeCode
-        );
-
-        if (!employeeData) {
-          throw new Error("Employee data not found");
-        }
-     
-
+          if(!employeeData)
+            {
+                console.log("Employee Not Found");
+                return;
+            }
+  
+          
+       
       // Generate the HTML dynamically with placeholders replaced by the API data
       const htmlContent = `
       <!DOCTYPE html>
@@ -140,27 +132,27 @@ export const generateJobDescFormPDF = functions.https.onRequest(
     <div class="form-grid">
         <div class="form-group">
             <label>Employee Code:</label>
-            <input type="text" value=${employeeData.Personal.EmployeeCode}>
+            <input type="text" value=${employeeData?.Personal.EmployeeCode}>
         </div>
         <div class="form-group">
             <label>Department:</label>
-            <input type="text" value=${employeeData.Job.Department}>
+            <input type="text" value=${employeeData?.Job.Department}>
         </div>
         <div class="form-group">
             <label>Name:</label>
-            <input type="text" value=${employeeData.EmployeeName}>
+            <input type="text" value=${employeeData?.EmployeeName}>
         </div>
         <div class="form-group">
             <label>Section:</label>
-            <input type="text" value=${employeeData.Job.Section}>
+            <input type="text" value=${employeeData?.Job.Section}>
         </div>
         <div class="form-group">
             <label>Date of Joining:</label>
-            <input type="text" value="${employeeData.DateOfJoining}">
+            <input type="text" value="${employeeData?.DateOfJoining}">
         </div>
         <div class="form-group">
             <label>Designation:</label>
-            <input type="text" value=${employeeData.Job.Designation}>
+            <input type="text" value=${employeeData?.Job.Designation}>
         </div>
     </div>
 
@@ -206,7 +198,7 @@ export const generateJobDescFormPDF = functions.https.onRequest(
 
   // Save PDF to Firebase Storage
   const bucket = admin.storage().bucket();
-  const fileName = `JobDescriptionForm-${employeeData.Personal.EmployeeCode}.pdf`;
+  const fileName = `JobDescriptionForm-${employeeData?.Personal.EmployeeCode}.pdf`;
   const file = bucket.file(fileName);
   await file.save(pdfBuffer, { predefinedAcl: "publicRead" });
 
@@ -214,10 +206,11 @@ export const generateJobDescFormPDF = functions.https.onRequest(
   const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
   res
     .status(200)
-    .send({ message: "PDF generated and stored successfully", url: downloadUrl });
-}
+    .send({ message: "PDF generated and stored successfully", pdfUrl: downloadUrl });
+
 } catch (error) {
-res.status(500).send(`An error occurred:`);
+      console.error("Error generating PDF:", error); // Log the error for debugging
+      res.status(500).send(`An error occurred: ${error}`);
 }
 }
 );

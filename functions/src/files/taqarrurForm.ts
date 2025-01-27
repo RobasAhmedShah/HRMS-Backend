@@ -2,31 +2,21 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer";
 const chromium = require("@sparticuz/chromium");
-
+import { db } from "..";
 
 
 export const generateTaqarrurFormPDF = functions.https.onRequest(
   async (req, res) => {
     try {
         const employeeCode = req.body.empCode;
-        let employeeData;
+        const employeeDoc = await db
+          .collection("employees")
+          .doc(employeeCode)
+          .get();
   
-        // Fetch employee data if employee code is provided
-        if (employeeCode) {
-          const response = await fetch(
-            "https://us-central1-hrms-1613d.cloudfunctions.net/getAllEmployees"
-          );
+          const employeeData = await employeeDoc.data();
   
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-  
-          const employees = await response.json();
-  
-          // Filter employee data by code
-          employeeData = employees.find(
-            (employee: any) => employee.EmployeeCode === employeeCode
-          );
+          
   
           if (!employeeData) {
             throw new Error("Employee data not found");
@@ -300,14 +290,18 @@ export const generateTaqarrurFormPDF = functions.https.onRequest(
   const file = bucket.file(fileName);
   await file.save(pdfBuffer, { predefinedAcl: "publicRead" });
 
-  // Generate a signed URL for the PDF
-  const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-  res
-    .status(200)
-    .send({ message: "PDF generated and stored successfully", url: downloadUrl });
-}
-} catch (error) {
-res.status(500).send(`An error occurred:`);
-}
-}
+     // Generate a signed URL for the PDF
+     const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+
+     res.status(200).json({
+       message: "Personal file slip generated successfully",
+       pdfUrl: downloadUrl,
+     });
+   } catch (error) {
+     console.error("Error generating personal file slip:", error);
+     res.status(500).json({
+       message: "Failed to generate personal file slip",
+     });
+   }
+ }
 );

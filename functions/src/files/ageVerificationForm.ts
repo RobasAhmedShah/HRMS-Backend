@@ -3,7 +3,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer";
 const chromium = require("@sparticuz/chromium");
-
+import { db } from "..";
 
 
 export const generateAgeVerificationFormPDF = functions.https.onRequest(
@@ -12,25 +12,16 @@ export const generateAgeVerificationFormPDF = functions.https.onRequest(
        // Month is 0-indexed
        try {
         const employeeCode = req.body.empCode;
-        let employeeData;
+        const employeeDoc = await db
+          .collection("employees")
+          .doc(employeeCode)
+          .get();
+        
   
-        // Fetch employee data if employee code is provided
-        if (employeeCode) {
-          const response = await fetch(
-            "https://us-central1-hrms-1613d.cloudfunctions.net/getAllEmployees"
-          );
-  
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-  
-          const employees = await response.json();
+          const employeeData = employeeDoc.data();
   
           // Filter employee data by code
-          employeeData = employees.find(
-            (employee: any) => employee.EmployeeCode === employeeCode
-          );
-  
+        
           if (!employeeData) {
             throw new Error("Employee data not found");
           }
@@ -323,10 +314,10 @@ export const generateAgeVerificationFormPDF = functions.https.onRequest(
   const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
   res
     .status(200)
-    .send({ message: "PDF generated and stored successfully", url: downloadUrl });
-}
+    .send({ message: "PDF generated and stored successfully", pdfUrl: downloadUrl });
 } catch (error) {
 res.status(500).send(`An error occurred:`);
 }
 }
+
 );

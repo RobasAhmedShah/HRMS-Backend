@@ -2,79 +2,23 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer";
 const chromium = require("@sparticuz/chromium");
-
+import { db } from "..";
 
 
 export const generateEmploymentFormPDF = functions.https.onRequest(
   async (req, res) => {
     const employeeCode = req.body.empCode;
-    let employeeData;
+      const employeeDoc = await db
+        .collection("employees")
+        .doc(employeeCode)
+        .get();
 
-    // Fetch employee data if employee code is provided
-    if (employeeCode) {
-      try {
-        const response = await fetch(
-          'https://us-central1-hrms-1613d.cloudfunctions.net/getAllEmployees'
-        );
+        const employeeData = employeeDoc.data();
 
-        if (!response.ok) {
-          throw new Error(`API request failed with status ${response.status}`);
-        }
+        
 
-        const employees = await response.json();
-
-        // Filter employee data by code
-        employeeData = employees.find(
-          (employee: any) => employee.EmployeeCode === employeeCode
-        );
-
-        if (!employeeData) {
-          console.log("No matching employee found. Using mock data.");
-          employeeData = {
-            EmployeeCode: "11010012",
-            EmployeeName: "Saima",
-            FatherName: "Ali Khan",
-            MaritalStatus: "Married",
-            Address: "House # 123 Street NA-4 Korangi Karachi",
-            Telephone: "021-1234567",
-            Mobile: "0346-2234591",
-            Gender: "Female",
-            DOB: "03 DEC 2001",
-            Religion: "Islam",
-            Qualification: "Masters",
-            CNIC: "42201-0172150-8",
-            DateOfJoining: "11/12/24",
-            Section: "Line No.4",
-            Department: "Stitching",
-          };
-        }
-      } catch (apiError) {
-        console.error("Error fetching employee data:", apiError);
-        res
-          .status(500)
-          .send({ error: "Failed to fetch employee data from API." });
-        return;
-      }
-    } else {
-      console.log("No employee code provided. Using mock data.");
-      employeeData = {
-        EmployeeCode: "11010012",
-        EmployeeName: "Saima",
-        FatherName: "Ali Khan",
-        MaritalStatus: "Married",
-        Address: "House # 123 Street NA-4 Korangi Karachi",
-        Telephone: "021-1234567",
-        Mobile: "0346-2234591",
-        Gender: "Female",
-        DOB: "03 DEC 2001",
-        Religion: "Islam",
-        Qualification: "Masters",
-        CNIC: "42201-0172150-8",
-        DateOfJoining: "11/12/24",
-        Section: "Line No.4",
-        Department: "Stitching",
-      };
-    }
+        
+    
 
     // Ensure employee data exists
     if (!employeeData) {
@@ -787,6 +731,6 @@ export const generateEmploymentFormPDF = functions.https.onRequest(
 
   // Generate a signed URL for the PDF
   const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-      res.status(200).send({ message: "PDF generated and stored successfully", url: downloadUrl });
+      res.status(200).send({ message: "PDF generated and stored successfully", pdfUrl: downloadUrl });
     } 
 );

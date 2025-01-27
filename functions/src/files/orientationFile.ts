@@ -2,31 +2,39 @@ import * as functions from "firebase-functions";
 import * as puppeteer from "puppeteer-core";
 import admin from "firebase-admin";
 const chromium = require("@sparticuz/chromium");
+import { db } from "..";
 
 
 export const generateOrientationChecklist = functions.https.onRequest(
     {memory:"512MiB"},
   async (req, res) => {
     try {
-        const employeeData=req.body;
+      const employeeCode = req.body.empCode;
+      const employeeDoc = await db
+        .collection("employees")
+        .doc(employeeCode)
+        .get();
+      const employeeName = employeeDoc.data()?.EmployeeName;
+
       // Example API response (Replace this with actual API call)
-    //   const employeeData = {
-    //     id: "1103800257",
-    //     name: "Saima",
-    //     checklist: [
-    //       { id: 1, topic: "LEAVES", training: "Yes", evaluation: "Yes", remarks: "Un-Satisfactory" },
-    //       { id: 2, topic: "Salary Payment Policy", training: "Yes", evaluation: "Yes", remarks: "Satisfactory" },
-    //       { id: 3, topic: "Hours of work (Timing)", training: "Yes", evaluation: "Yes", remarks: "Un-Satisfactory" },
-    //       { id: 4, topic: "Fire Safety", training: "Yes", evaluation: "Yes", remarks: "Satisfactory" },
-    //       { id: 5, topic: "OBI / CSDAT", training: "Yes", evaluation: "No", remarks: "Un-Satisfactory" },
-    //       { id: 6, topic: "CPR", training: "No", evaluation: "No", remarks: "Satisfactory" },
-    //       { id: 7, topic: "Fire Extinguisher", training: "Yes", evaluation: "Yes", remarks: "Satisfactory" },
-    //       { id: 8, topic: "Employee of Other PPEs", training: "Yes", evaluation: "Yes", remarks: "Satisfactory" },
-    //       { id: 9, topic: "Handling of Chemicals", training: "No", evaluation: "No", remarks: "Un-Satisfactory" },
-    //       { id: 10, topic: "Evacuation Drill", training: "Yes", evaluation: "Yes", remarks: "Satisfactory" },
-    //     ],
-    //     trainingDate: "01:04:2021",
-    //   };
+      const employeeData = {
+        id: employeeCode,
+        checklist: [
+          { id: 1, topic: "LEAVES", training: "", evaluation: "", remarks: "" },
+          { id: 2, topic: "Salary Payment Policy", training: "", evaluation: "", remarks: "" },
+          { id: 3, topic: "Hours of work (Timing)", training: "", evaluation: "", remarks: "" },
+          { id: 4, topic: "Fire Safety", training: "", evaluation: "", remarks: "" },
+          { id: 5, topic: "OBI / CSDAT", training: "", evaluation: "", remarks: "" },
+          { id: 6, topic: "CPR", training: "", evaluation: "", remarks: "" },
+          { id: 7, topic: "Fire Extinguisher", training: "", evaluation: "", remarks: "" },
+          { id: 8, topic: "Employee of Other PPEs", training: "", evaluation: "", remarks: "" },
+          { id: 9, topic: "Handling of Chemicals", training: "", evaluation: "", remarks: "" },
+          { id: 10, topic: "Evacuation Drill", training: "", evaluation: "", remarks: "" },
+        ],
+        trainingDate: new Date(),
+          name: employeeName ? employeeName : "",
+
+      };
 
       // Generate the HTML dynamically
       const htmlContent = `

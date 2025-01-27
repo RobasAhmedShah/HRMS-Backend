@@ -5,7 +5,7 @@ import { Request, Response } from "express";
 import cors from "cors";
 import calculatePayroll from "./calculateSalary";
 import { mockEmployees } from "./mock";
-// import validateEmployeeData from "./validateEmployee";
+import validateEmployeeData from "./validateEmployee";
 import generateMockAttendance, { generateMockLeaves } from "./generateMock";
 import { generateTrialSlip } from "./files/TrialSlip";
 import { generatePersonalFileSlip } from "./files/personalFile";
@@ -15,6 +15,7 @@ import { generateFitnessFormPDF } from "./files/fitness-form";
 import { generateAgeVerificationFormPDF } from "./files/ageVerificationForm";
 import { generateJobDescFormPDF } from "./files/jobDesc";
 import { generateTaqarrurFormPDF } from "./files/taqarrurForm";
+import { generateAllPDFs } from "./files/PersonalForm";
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
@@ -110,12 +111,12 @@ export const addEmployee = functions.https.onRequest((req: Request, res: Respons
   corsHandler(req, res, async () => {
     const employeeData = req.body;
 
-    // // Validate employee data
-    // const validation = validateEmployeeData(employeeData);
-    // if (!validation.valid) {
-    //   res.status(400).send(validation.message);
-    //   return;
-    // }
+    // Validate employee data
+    const validation = validateEmployeeData(employeeData);
+    if (!validation.valid) {
+      res.status(400).send(validation.message);
+      return;
+    }
 
     try {
       const docRef = await db.collection("employees").add({
@@ -409,9 +410,9 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
 
     // Validate required fields
     if (
-      !employeeData.PersonalDetails?.EmployeeID ||
-      !employeeData.PersonalDetails?.EmployeeCode ||
-      !employeeData.PersonalDetails?.EmployeeName
+      !employeeData.Personal?.EmployeeID ||
+      !employeeData.Personal?.EmployeeCode ||
+      !employeeData.Personal?.EmployeeName
     ) {
       res.status(400).send({
         error: "Missing required fields: EmployeeID, EmployeeCode, or EmployeeName.",
@@ -421,7 +422,7 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
 
     try {
       // Reference to the employee document
-      const employeeDocRef = db.collection("employees").doc(employeeData.PersonalDetails.EmployeeID);
+      const employeeDocRef = db.collection("employees").doc(employeeData.Personal.EmployeeID);
 
       // Get the current date and time in Pakistan timezone
       const pakistanTime = new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
@@ -439,14 +440,14 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
       // Prepare the data to save, merging all details into one document
       const mergedData = {
     
-        EmployeeName: employeeData.PersonalDetails.EmployeeName ?? "N/A",
-          EmployeeCode: employeeData.PersonalDetails.EmployeeCode ?? "N/A",
-          CNIC: employeeData.PersonalDetails.CNIC ?? "N/A",
-        DOB: employeeData.PersonalDetails.DOB ?? "N/A",
-        Gender: employeeData.PersonalDetails.Gender ?? "N/A",
-        MaritalStatus: employeeData.PersonalDetails.MaritalStatus ?? "N/A",
-        Mobile: employeeData.PersonalDetails.Mobile ?? "N/A",
-        Type: employeeData.PersonalDetails.Type ?? "N/A",
+        EmployeeName: employeeData.Personal.EmployeeName ?? "N/A",
+          EmployeeCode: employeeData.Personal.EmployeeCode ?? "N/A",
+          CNIC: employeeData.Personal.CNIC ?? "N/A",
+        DOB: employeeData.Personal.DOB ?? "N/A",
+        Gender: employeeData.Personal.Gender ?? "N/A",
+        MaritalStatus: employeeData.Personal.MaritalStatus ?? "N/A",
+        Mobile: employeeData.Personal.Mobile ?? "N/A",
+        Type: employeeData.Personal.Type ?? "N/A",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         sMonth: employeeData.sMonth ?? "N/A",
@@ -458,10 +459,10 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
         OTType: employeeData.OTType ?? "N/A",
         AccountNo: employeeData.AccountNo ?? "N/A",
         
-          Personal: cleanData(employeeData.PersonalDetails),
-          Job: cleanData(employeeData.JobDetails),
-          Attendance: cleanData(employeeData.AttendanceDetails),
-          Financial: cleanData(employeeData.FinancialDetails),
+          Personal: cleanData(employeeData.Personal),
+          Job: cleanData(employeeData.Job),
+          Attendance: cleanData(employeeData.Attendance),
+          Financial: cleanData(employeeData.Financial),
         Log: {
           [currentDate]: {
             addedBy: employeeData.addedBy ?? "system",
@@ -476,7 +477,7 @@ export const saveEmployeeData = functions.https.onRequest((req, res) => {
 
       res.status(200).send({
         message: "Employee data stored successfully in a single document!",
-        employeeId: employeeData.PersonalDetails.EmployeeID,
+        employeeId: employeeData.Personal.EmployeeID,
       });
     } catch (error) {
       console.error("Error storing employee data:", error);
@@ -579,6 +580,18 @@ export const taqarrurForm =functions.https.onRequest( {
     generateTaqarrurFormPDF(req,res);
   });
 });
+
+
+export const PersonalFiles  = functions.https.onRequest( {
+  memory: "1GiB" },
+   (req, res) => {
+  corsHandler(req, res, async () => {
+    generateAllPDFs(req,res);
+  });
+});
+
+
+
 
 
 

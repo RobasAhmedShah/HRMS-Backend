@@ -2,7 +2,7 @@ import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer-core";
 const chromium = require("@sparticuz/chromium");
-
+import { db } from ".."; 
 export const generatePersonalFileSlip = functions.https.onRequest(
   {
     memory: "512MiB", // Allocate 512MB of memory
@@ -10,25 +10,34 @@ export const generatePersonalFileSlip = functions.https.onRequest(
   async (req, res) => {
     try {
       // Parse request body
-      const { EmployeeId, EmployeeName, FileNo, checklistData } = req.body;
+
+      const employeeCode = req.body.empCode;
+      const FileNo=Math.random();
+      const employeeDoc = await db
+        .collection("employees")
+        .doc(employeeCode)
+        .get();
+      const EmployeeName = employeeDoc.data()?.EmployeeName;
+
 
       // Generate slip number and current date
       const generatedSlipNumber = generateSlipNumber();
 
-      // Generate HTML dynamically using checklistData
-      const checklistHTML = Object.entries(checklistData)
-        .map(([key, value]) => {
+      // Generate HTML dynamically for checklist
+      const checklistHTML = Object.keys(getDocumentNames())
+        .map((key) => {
           return `
           <tr>
               <td>${key}</td>
               <td>${getDocumentName(key)}</td>
               <td>
-                  <input type="checkbox" ${value === "Yes" ? "checked" : ""}> Yes
-                  <input type="checkbox" ${value === "No" ? "checked" : ""}> No
-                  <input type="checkbox" ${value === "N/A" ? "checked" : ""}> N/A
+                  <input type="checkbox" > Yes
+                  <input type="checkbox" > No
+                  <input type="checkbox"  > N/A
               </td>
           </tr>`;
         })
+        
         .join("");
 
       // Create the HTML for the personal file slip
@@ -115,7 +124,7 @@ export const generatePersonalFileSlip = functions.https.onRequest(
       
           <p class="checklist-title">PERSONAL FILE CHECK LIST</p>
           <p>Ensure that the accurate and correct information is in the file as per given points:</p>
-          <p>Employee ID: ${EmployeeId} &nbsp; Employee Name: ${EmployeeName}</p>
+          <p>Employee ID: ${employeeCode} &nbsp; Employee Name: ${EmployeeName}</p>
           
           <table>
               <thead>
@@ -204,7 +213,7 @@ function generateSlipNumber(): string {
 }
 
 // Utility function to map serial numbers to document names
-function getDocumentName(serialNumber: string): string {
+function getDocumentNames(): Record<string, string> {
   const documentNames: Record<string, string> = {
     "1": "Separate Employee file with File No.",
     "2": "Application / CV of Employee for Job, if any",
@@ -234,5 +243,9 @@ function getDocumentName(serialNumber: string): string {
     "22": "Evaluation",
     
   };
+  return documentNames;
+}
+function getDocumentName(serialNumber: string): string {
+  const documentNames=getDocumentNames()
   return documentNames[serialNumber] || "Unknown Document";
 }

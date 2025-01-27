@@ -2,40 +2,26 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import * as puppeteer from "puppeteer";
 const chromium = require("@sparticuz/chromium");
+import { db } from "..";
 
+export const generateFitnessFormPDF = functions.https.onRequest(async (req, res) => {
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, "0");
+  const month = String(today.getMonth() + 1).padStart(2, "0"); // Month is 0-indexed
 
-
-export const generateFitnessFormPDF = functions.https.onRequest(
-  async (req, res) => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
-
-    try {
+  try {
+    if (req.body.empCode) {
       const employeeCode = req.body.empCode;
-      let employeeData;
 
-      // Fetch employee data if employee code is provided
-      if (employeeCode) {
-        try {
-          const response = await fetch(
-            'https://us-central1-hrms-1613d.cloudfunctions.net/getAllEmployees'
-          );
+      // Fetch employee data
+      const employeeDoc = await db.collection("employees").doc(employeeCode).get();
+      const employeeData = employeeDoc.data();
 
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
+      if (!employeeData) {
+        res.status(404).send({ error: "Employee not found" });
+        return;
+      }
 
-          const employees = await response.json();
-
-          // Filter employee data by code
-          employeeData = employees.find(
-            (employee: any) => employee.EmployeeCode === employeeCode
-          );
-
-          if (!employeeData) {
-            throw new Error("Employee not found");
-          }
 
           // Generate the HTML dynamically with placeholders replaced by the API data
           const htmlContent = `
@@ -270,39 +256,37 @@ export const generateFitnessFormPDF = functions.https.onRequest(
       `;
 
           // Launch Puppeteer to generate PDF
-          const browser = await puppeteer.launch({
-            args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-          });
+      const browser = await puppeteer.launch({
+        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
 
-          const page = await browser.newPage();
-          await page.setContent(htmlContent);
-          const pdfBuffer = await page.pdf({
-            format: "A4",
-            printBackground: true,
-          });
-          await browser.close();
+      const page = await browser.newPage();
+      await page.setContent(htmlContent);
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+      });
+      await browser.close();
 
-          // Save PDF to Firebase Storage
-          const bucket = admin.storage().bucket();
-          const fileName = `fitnessForm-${employeeData.EmployeeCode}.pdf`;
-          const file = bucket.file(fileName);
-          await file.save(pdfBuffer, { predefinedAcl: 'publicRead' });
+      // Save PDF to Firebase Storage
+      const bucket = admin.storage().bucket();
+      const fileName = `fitnessForm-${employeeData.EmployeeCode}.pdf`;
+      const file = bucket.file(fileName);
+      await file.save(pdfBuffer, { predefinedAcl: "publicRead" });
 
-          // Generate a signed URL for the PDF
-          const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-          res.status(200).send({ message: "PDF generated and stored successfully", url: downloadUrl });
-        } catch (error) {
-          console.error("Error fetching employee data or generating PDF:", error);
-          res.status(500).send({ error: "Failed to fetch employee data or generate PDF" });
-        }
-      } else {
-        res.status(400).send({ error: "Employee code is required" });
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      res.status(500).send({ error: "Unexpected error occurred" });
+      // Generate a public URL for the PDF
+      const downloadUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
+      res.status(200).send({
+        message: "PDF generated and stored successfully",
+        pdfUrl: downloadUrl,
+      });
+    } else {
+      res.status(400).send({ error: "Employee code is required" });
     }
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send({ error: "Unexpected error occurred" });
   }
-);
+});
