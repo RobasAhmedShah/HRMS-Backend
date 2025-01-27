@@ -16,7 +16,9 @@ import { generateAgeVerificationFormPDF } from "./files/ageVerificationForm";
 import { generateJobDescFormPDF } from "./files/jobDesc";
 import { generateTaqarrurFormPDF } from "./files/taqarrurForm";
 import { generateAllPDFs } from "./files/PersonalForm";
-// Initialize Firebase Admin SDK
+import { logTimeIn } from "./Attendance/attendance";
+import { logTimeOut } from "./Attendance/attendance";
+import { getAttendanceSummary } from "./Attendance/attendance";
 admin.initializeApp();
 
 export const db = admin.firestore();
@@ -587,6 +589,27 @@ export const PersonalFiles  = functions.https.onRequest( {
    (req, res) => {
   corsHandler(req, res, async () => {
     generateAllPDFs(req,res);
+  });
+});
+
+export const timeIn = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    logTimeIn(req,res);
+  });
+});
+
+export const timeOut = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    logTimeOut(req,res);
+  });
+});
+
+export const attendanceSummary = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    getAttendanceSummary(req,res);
   });
 });
 
