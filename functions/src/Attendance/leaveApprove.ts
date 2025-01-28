@@ -16,7 +16,7 @@ export const approveLeave = functions.https.onRequest(async (req, res) => {
         return;
       }
   
-      const leaveRef = db.collection("leaves").doc(`${employeeCode}_${leaveDate}`);
+      const leaveRef = db.collection("leaves").doc(`${employeeCode}`);
       await leaveRef.set({ employeeCode, leaveDate, status }, { merge: true });
   
       res.status(200).send("Leave status updated successfully");
