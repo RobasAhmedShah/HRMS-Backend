@@ -159,7 +159,7 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
       return;
     }
 
-    const { employeeCode, fromDate, toDate } = req.body;
+    const { employeeCode, fromDate, toDate } = req.query;
 
     if (!employeeCode || !fromDate || !toDate) {
       res.status(400).send("Missing required query parameters: employeeCode, fromDate, or toDate");
@@ -265,7 +265,7 @@ export const getAllAttendanceSummary = functions.https.onRequest(async (req, res
       return;
     }
 
-    const { fromDate, toDate } = req.body;
+    const { fromDate, toDate } = req.query;
 
     if (!fromDate || !toDate) {
       res.status(400).send("Missing required query parameters: fromDate or toDate");
