@@ -174,6 +174,15 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
       return;
     }
 
+    const employeeRef = db.collection("employees").doc(employeeCode as string);
+    const employeeDoc = await employeeRef.get();
+
+    if (!employeeDoc.exists) {
+      res.status(404).send("Employee not found");
+      return;
+    }
+    const employeeData = employeeDoc.data();
+
     const attendanceRef = db.collection("attendance").doc(employeeCode as string);
     const attendanceDoc = await attendanceRef.get();
 
@@ -230,6 +239,7 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
     });
 
     // Return the summary data
+    const employee = { name: employeeData?.fullName, employeeCode, position: employeeData?.position };
     const summary = {
       presents,
       absents,
@@ -237,6 +247,8 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
       totalOvertime: formatMinutesToHours(totalOvertime),
       totalLatecomings: formatMinutesToHours(totalLatecomings),
       totalEarlyLeavings: formatMinutesToHours(totalEarlyLeavings),
+      employee,
+      filteredAttendance,
     };
 
     res.status(200).send(summary);
