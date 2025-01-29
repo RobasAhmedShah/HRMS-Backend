@@ -337,7 +337,7 @@ export const generateTrialSlip = functions.https.onRequest(async (req, res) => {
         Mobile:null,
         DateOfJoining:null,
         MaritalStatus:null,
-        MType:null,
+        MType:"Trial",
         sYear:null,
         PayMode:null,
         AccountNo:null,
