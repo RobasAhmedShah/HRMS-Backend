@@ -20,6 +20,7 @@ import { logTimeIn } from "./Attendance/attendance";
 import { logTimeOut } from "./Attendance/attendance";
 import { getAttendanceSummary } from "./Attendance/attendance";
 import { approveLeave } from "./Attendance/leaveApprove";
+import { generateAllAttendanceReportPDF, generateAttendanceReportPDF } from "./Attendance/report";
 admin.initializeApp();
 
 export const db = admin.firestore();
@@ -625,7 +626,19 @@ export const leaveApproval = functions.https.onRequest(
   });
 });
 
+export const attendanceReport = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    generateAttendanceReportPDF(req,res);
+  });
+});
 
+export const getAttendanceReport = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    generateAllAttendanceReportPDF(req,res);
+  });
+});
 
 
 

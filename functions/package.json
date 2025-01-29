@@ -15,12 +15,15 @@
   "main": "lib/index.js",
   "dependencies": {
     "@sparticuz/chromium": "^131.0.1",
+    "@types/jspdf": "^2.0.0",
     "browsers": "^1.0.2",
     "bwip-js": "^4.5.1",
     "chrome": "^0.1.0",
     "chromium": "^3.0.3",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.2.0",
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "pdf-lib": "^1.17.1",
     "puppeteer": "^24.1.1",
     "puppeteer-core": "^24.1.1"
