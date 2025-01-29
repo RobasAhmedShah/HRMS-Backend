@@ -328,6 +328,7 @@ export const getAllAttendanceSummary = functions.https.onRequest(async (req, res
         totalOvertime: formatMinutesToHours(totalOvertime),
         totalLatecomings: formatMinutesToHours(totalLatecomings),
         totalEarlyLeavings: formatMinutesToHours(totalEarlyLeavings),
+        filteredAttendance,        
       };
 
       allAttendanceSummary.push(summary);
