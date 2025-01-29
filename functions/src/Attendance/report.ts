@@ -12,7 +12,7 @@ export const generateAttendanceReportPDF = functions.https.onRequest(async (req,
         }
 
         // Validate query parameters
-        const { empCode,fromDate, toDate } = req.query;
+        const { empCode,fromDate, toDate } = req.body;
         if (!fromDate || !toDate) {
             res.status(400).send("Missing required query parameters: fromDate or toDate");
             return;
@@ -279,7 +279,7 @@ export const generateAllAttendanceReportPDF = functions.https.onRequest(async (r
         }
 
         // Validate query parameters
-        const { fromDate, toDate, reportType } = req.query;
+        const { fromDate, toDate, reportType } = req.body;
         if (!fromDate || !toDate) {
             res.status(400).send("Missing required query parameters: fromDate or toDate");
             return;

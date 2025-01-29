@@ -19,6 +19,7 @@ import { generateAllPDFs } from "./files/PersonalForm";
 import { logTimeIn } from "./Attendance/attendance";
 import { logTimeOut } from "./Attendance/attendance";
 import { getAttendanceSummary } from "./Attendance/attendance";
+import { getAllAttendanceSummary } from "./Attendance/attendance";
 import { approveLeave } from "./Attendance/leaveApprove";
 import { generateAllAttendanceReportPDF, generateAttendanceReportPDF } from "./Attendance/report";
 admin.initializeApp();
@@ -637,6 +638,13 @@ export const getAttendanceReport = functions.https.onRequest(
   (req, res) => {
   corsHandler(req, res, async () => {
     generateAllAttendanceReportPDF(req,res);
+  });
+});
+
+export const allAttendanceSummary = functions.https.onRequest(
+  (req, res) => {
+  corsHandler(req, res, async () => {
+    getAllAttendanceSummary(req,res);
   });
 });
 

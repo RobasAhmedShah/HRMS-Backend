@@ -153,13 +153,13 @@ export const logTimeOut = functions.https.onRequest(async (req, res) => {
 });
 
 export const getAttendanceSummary = functions.https.onRequest(async (req, res) => {
-  try {
+  try {``
     if (req.method !== "GET") {
       res.status(405).send("Method Not Allowed");
       return;
     }
 
-    const { employeeCode, fromDate, toDate } = req.query;
+    const { employeeCode, fromDate, toDate } = req.body;
 
     if (!employeeCode || !fromDate || !toDate) {
       res.status(400).send("Missing required query parameters: employeeCode, fromDate, or toDate");
@@ -245,6 +245,91 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
     res.status(500).send("Internal Server Error");
   }
 });
+
+export const getAllAttendanceSummary = functions.https.onRequest(async (req, res) => {
+  try {
+    if (req.method !== "GET") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const { fromDate, toDate } = req.body;
+
+    if (!fromDate || !toDate) {
+      res.status(400).send("Missing required query parameters: fromDate or toDate");
+      return;
+    }
+
+    const from = new Date(fromDate as string);
+    const to = new Date(toDate as string);
+
+    if (from > to) {
+      res.status(400).send("FromDate cannot be greater than ToDate");
+      return;
+    }
+
+    const attendanceRef = db.collection("attendance");
+    const attendanceDocs = await attendanceRef.get();
+
+    const allAttendanceSummary: any[] = [];
+
+    for (const attendanceDoc of attendanceDocs.docs) {
+      const employeeCode = attendanceDoc.id;
+      const dailyAttendance = attendanceDoc.data().dailyAttendance || [];
+
+      const filteredAttendance = dailyAttendance.filter((entry: any) => {
+        const entryDate = new Date(entry.date);
+        return entryDate >= from && entryDate <= to;
+      });
+
+      let presents = 0;
+      let absents = 0;
+      let totalWorkingHours = 0;
+      let totalOvertime = 0;
+      let totalLatecomings = 0;
+      let totalEarlyLeavings = 0;
+
+      filteredAttendance.forEach((entry: any) => {
+        if (entry.timeIn && entry.timeOut) {
+          presents += 1;
+
+          const workingMinutes = (new Date(entry.timeOut).getTime() - new Date(entry.timeIn).getTime()) / (1000 * 60);
+          const workingHours = Math.floor(workingMinutes / 60);
+          const overtime = entry.overtime ? parseTimeToMinutes(entry.overtime) : 0;
+          const latecomings = entry.latecomings ? parseTimeToMinutes(entry.latecomings) : 0;
+          const earlyLeavings = entry.earlyLeavings ? parseTimeToMinutes(entry.earlyLeavings) : 0;
+
+          totalWorkingHours += workingHours;
+          totalOvertime += overtime;
+          totalLatecomings += latecomings;
+          totalEarlyLeavings += earlyLeavings;
+        } else {
+          absents += 1;
+        }
+      });
+
+      const summary = {
+        employeeCode,
+        presents,
+        absents,
+        totalWorkingHours: formatMinutesToHours(totalWorkingHours),
+        totalOvertime: formatMinutesToHours(totalOvertime),
+        totalLatecomings: formatMinutesToHours(totalLatecomings),
+        totalEarlyLeavings: formatMinutesToHours(totalEarlyLeavings),
+      };
+
+      allAttendanceSummary.push(summary);
+    }
+
+    res.status(200).send(allAttendanceSummary);
+  } catch (error) {
+    console.error("Error fetching all attendance summary:", error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+
+
   
   /**
    * Helper function to parse time (e.g., "1:30") to minutes
@@ -262,3 +347,4 @@ export const getAttendanceSummary = functions.https.onRequest(async (req, res) =
     const mins = minutes % 60;
     return `${hours}:${mins.toString().padStart(2, "0")}`;
   }
+
