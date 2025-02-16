@@ -289,13 +289,28 @@ export const calculateEmployeePayroll = functions.https.onRequest((req: Request,
     }
 
     try {
+      // Check if the employee document exists
+      const employeeDocRef = db.collection("employees").doc(employeeData.employeeName);
+      const employeeDoc = await employeeDocRef.get();
+
+      if (!employeeDoc.exists) {
+        res.status(404).send({
+          error: "Employee not found",
+          details: `No employee found with the name: ${employeeData.employeeName}`,
+        });
+        return;
+      }
+
+
       // Calculate payroll
       const payrollData = calculatePayroll(employeeData);
 
       // Store the payroll details in Firestore
-      const payrollRef = db.collection("employees").doc(employeeData.employeeName).collection("payroll").doc();
+      const payrollRef = employeeDocRef.collection("payroll").doc();
       await payrollRef.set({ // You need to use doc().set() to create a document
         ...payrollData,
+        employeeId: employeeDoc.id,
+        employeeName: employeeData.employeeName,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       await payrollRef.update({
@@ -307,8 +322,15 @@ export const calculateEmployeePayroll = functions.https.onRequest((req: Request,
         payroll: payrollData
       });
     } catch (error) {
-      console.error("Error calculating payroll:", error);
-      res.status(500).send("Error calculating payroll.");
+      console.error("Error calculating payroll for employee:", error);
+      res.status(500).send({
+        error: "Error calculating payroll",
+        details: {
+          message: error instanceof Error ? error.message : "An unexpected error occurred",
+          stack: error instanceof Error ? error.stack : null,
+          employeeData: employeeData
+        },
+      });
     }
   });
 });
